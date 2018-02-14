@@ -2,6 +2,7 @@ let _ = require('lodash');
 let {
   alt,
   atLeast,
+  between,
   chain,
   charInString,
   map,
@@ -12,6 +13,7 @@ let {
   thisChar,
   thisString,
   times,
+  trim,
   zeroOrMore
 } = require('./pc.js');
 
@@ -165,6 +167,16 @@ test('(chain)', () => {
     return regex(new RegExp('\\w+' + result[0][0]))(rest);
   });
   let w = word();
-  let ch = _.sample('!@#$%^&*()[]\\{}|;\':",./<>?');
+  let ch = _.sample('!@#%&]{}|;:",/<>');
   expect(q(ch + w + ch).result[0]).toEqual(w + ch);
+});
+
+test('(between, trim)', () => {
+  let lparen = thisChar('(');
+  let rparen = thisChar(')');
+  let result = word();
+  let rest = word();
+  let str = '(' + '     ' + result + '   ' + ')' + rest;
+  let p = regex(/\w+/);
+  expect(between(lparen, trim(p), rparen)(str).result[0]).toEqual(result);
 });

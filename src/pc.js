@@ -20,7 +20,7 @@ function map(f, p) {
     let output = p(str);
     return output.status === SUCCESS
       ? Object.assign(output, { result: f(output.result) })
-      : { status: FAIL };
+      : output;
   };
 }
 
@@ -48,7 +48,7 @@ let negativePeek = p =>
     p
   );
 
-function satisfy(f) {
+function satisfy(f, err) {
   return function(str) {
     let [ch, ...rest] = str;
     return f(ch)
@@ -201,9 +201,20 @@ function chain(p, f) {
   };
 }
 
+function between(left, p, right) {
+  return map(result => result[1], seq([left, p, right]));
+}
+
+let maybeSpace = regex(/\s*/);
+
+function trim(p) {
+  return between(maybeSpace, p, maybeSpace);
+}
+
 module.exports = {
   alt,
   atLeast,
+  between,
   chain,
   charInString,
   map,
@@ -212,6 +223,7 @@ module.exports = {
   regex,
   seq,
   thisChar,
+  trim,
   thisString,
   times,
   zeroOrMore
