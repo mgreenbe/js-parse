@@ -1,11 +1,15 @@
 let { doIncr } = require("./pos.js");
 
-function succeed(obj) {
-  return Object.assign({ type: "reply", status: "success" }, obj || {});
+function escapeRegExp(string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function fail(obj) {
-  return Object.assign({ type: "reply", status: "fail" }, obj || {});
+function succeed(obj, parser) {
+  return Object.assign(obj || {}, { parser, status: "success" });
+}
+
+function fail(obj, parser) {
+  return Object.assign(obj || {}, { parser, status: "fail" });
 }
 
 function isSuccess(obj) {
@@ -18,177 +22,64 @@ function isFailure(obj) {
 
 let initPos = { row: 1, col: 0, char: 0 };
 
-function char(c) {
-  return function(str, endPrev = initPos) {
-    return c === str[0]
-      ? succeed({
-          parser: "char",
-          value: c,
-          rest: str.slice(1),
-          endPrev: endPrev,
-          end: doIncr(c, endPrev)
-        })
-      : fail({
-          parser: "char",
-          expected: `${c}`,
-          found: `${str[0]}`,
-          endPrev
-        });
-  };
-}
-
-function oneOf(alphabet) {
-  if (typeof alphabet !== "string") {
-    throw new TypeError("oneOf takes a string argument.");
-  }
-  return function(str, endPrev = initPos) {
-    return alphabet.includes(str[0])
-      ? succeed({
-          parser: "oneOf",
-          value: str[0],
-          rest: str.slice(1),
-          endPrev: endPrev,
-          end: doIncr(str[0], endPrev)
-        })
-      : fail({
-          parser: "oneOf",
-          expected: `a character of '${alphabet}'`,
-          found: `${str[0]}`,
-          endPrev
-        });
-  };
-}
-
-function noneOf(alphabet) {
-  return function(str, endPrev = initPos) {
-    let reply = oneOf(alphabet)(str, endPrev);
-    return isSuccess(reply)
-      ? fail({
-          parser: "noneOf",
-          expected: `a character not in '${alphabet}'`,
-          found: `${reply.value[0]}`,
-          endPrev
-        })
-      : success({
-          parser: "noneOf",
-          value: str[0],
-          rest: str.slice(1),
-          endPrev: endPrev,
-          end: doIncr(str[0], endPrev)
-        });
-  };
-}
-
 function regex(re) {
   return function(str, endPrev = initPos) {
     let modifiedRE = new RegExp("^" + re.source, re.flags);
     let match = modifiedRE.exec(str);
     return match !== null
-      ? succeed({
-          parser: "regex",
-          value: match,
-          rest: str.slice(match[0].length),
-          endPrev: endPrev,
-          end: doIncr(match[0], endPrev)
-        })
-      : fail({
-          parser: "regex",
-          expected: `/${modifiedRE.source}/${modifiedRE.flags}`,
-          found: `${str.slice(0, 10)}${str.length <= 10 ? "" : "..."}`,
-          endPrev
-        });
+      ? succeed(
+          {
+            value: match,
+            rest: str.slice(match[0].length),
+            endPrev: endPrev,
+            end: doIncr(match[0], endPrev)
+          },
+          "regex"
+        )
+      : fail(
+          {
+            found: `${str.slice(0, 10)}${str.length <= 10 ? "" : "..."}`,
+            endPrev
+          },
+          `regex(/${modifiedRE.source}/${modifiedRE.flags})`
+        );
   };
 }
 
-function mappedRegex(
-  re,
-  successReply = reply => reply,
-  failReply = reply => reply
-) {
+function mappedRegex(re, parserName, group = 0) {
   return function(str, endPrev = initPos) {
     let reply = regex(re)(str, endPrev);
-    return Object.assign(
-      reply,
-      isSuccess(reply) ? successReply(reply) : failReply(reply)
-    );
+    return isSuccess(reply)
+      ? Object.assign(succeed(reply, parserName), {
+          value: reply.value[group]
+        })
+      : fail(reply, parserName);
   };
 }
 
-let letter = mappedRegex(
-  /[a-zA-Z]/,
-  ({ value }) => ({ parser: "letter", value: value[0] }),
-  ({ endPrev }) => ({
-    parser: "letter",
-    expected: `a letter`,
-    endPrev
-  })
-);
+let char = c => mappedRegex(new RegExp("^" + escapeRegExp(c)), "char");
 
-let letters = mappedRegex(
-  /[a-zA-Z]+/,
-  ({ value }) => ({ parser: "letters", value: value[0] }),
-  ({ endPrev }) => ({
-    parser: "letters",
-    expected: `a string of letters`,
-    endPrev
-  })
-);
+let oneOf = string =>
+  mappedRegex(new RegExp(`^[${escapeRegExp(string)}]`), `oneOf ${string}`);
 
-let digit = mappedRegex(
-  /[0-9]/,
-  ({ value }) => ({ parser: "digit", value: value[0] }),
-  ({ endPrev }) => ({
-    parser: "letters",
-    expected: `a digit`,
-    endPrev
-  })
-);
+let noneOf = string =>
+  mappedRegex(new RegExp(`^[^${escapeRegExp(string)}]`), `noneOf ${string}`);
 
-let digits = mappedRegex(
-  /[0-9]+/,
-  ({ value }) => ({ parser: "digits", value: value[0] }),
-  ({ endPrev }) => ({
-    parser: "letters",
-    expected: `a string of digits (length > 0)`,
-    endPrev
-  })
-);
+let letter = mappedRegex(/[a-zA-Z]/, "letter");
 
-let spaces = mappedRegex(
-  /[ ]+/,
-  ({ value }) => ({ parser: "spaces", value: value[0] }),
-  ({ endPrev }) => ({
-    parser: "spaces",
-    expected: `a string of spaces (length > 0)`,
-    endPrev
-  })
-);
+let letters = mappedRegex(/[a-zA-Z]+/, "letters");
 
-let maybeSpaces = mappedRegex(
-  /[ ]*/,
-  ({ value }) => ({ parser: "maybeSpaces", value: value[0] }),
-  () => {
-    throw new Error("maybeSpaces should never fail!");
-  }
-);
+let digit = mappedRegex(/[0-9]/, "digit");
 
-let whitespace = mappedRegex(
-  /\s+/,
-  ({ value }) => ({ parser: "whitespace", value: value[0] }),
-  ({ endPrev }) => ({
-    parser: "spaces",
-    expected: `whitespace (length > 0)`,
-    endPrev
-  })
-);
+let digits = mappedRegex(/[0-9]+/, "digits");
 
-let maybeWhitespace = mappedRegex(
-  /\s*/,
-  ({ value }) => ({ parser: "maybeWhitespace", value: value[0] }),
-  () => {
-    throw new Error("maybeWhitepace should never fail!");
-  }
-);
+let spaces = mappedRegex(/[ ]+/, "spaces");
+
+let maybeSpaces = mappedRegex(/[ ]*/, "maybeSpaces");
+
+let whitespace = mappedRegex(/\s+/, "whitespace");
+
+let maybeWhitespace = mappedRegex(/\s*/, "maybeWhitespace");
 
 module.exports = {
   char,
@@ -209,3 +100,5 @@ module.exports = {
   succeed,
   whitespace
 };
+
+console.log(noneOf("678^&\\asdfa")("aq\\?34abcd123"));
