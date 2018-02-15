@@ -1,15 +1,15 @@
-let { doIncr } = require('./pos.js');
+let { doIncr } = require("./pos.js");
 
 function succeed(obj) {
-  return Object.assign({ type: 'reply', status: 'success' }, obj || {});
+  return Object.assign({ type: "reply", status: "success" }, obj || {});
 }
 
 function fail(obj) {
-  return Object.assign({ type: 'reply', status: 'fail' }, obj || {});
+  return Object.assign({ type: "reply", status: "fail" }, obj || {});
 }
 
 function isSuccess(obj) {
-  return obj.status === 'success';
+  return obj.status === "success";
 }
 
 function isFailure(obj) {
@@ -22,14 +22,14 @@ function char(c) {
   return function(str, endPrev = initPos) {
     return c === str[0]
       ? succeed({
-          parser: 'char',
+          parser: "char",
           value: c,
           rest: str.slice(1),
           endPrev: endPrev,
           end: doIncr(c, endPrev)
         })
       : fail({
-          parser: 'char',
+          parser: "char",
           expected: `${c}`,
           found: `${str[0]}`,
           endPrev
@@ -38,20 +38,20 @@ function char(c) {
 }
 
 function oneOf(alphabet) {
-  if (typeof alphabet !== 'string') {
-    throw new TypeError('oneOf takes a string argument.');
+  if (typeof alphabet !== "string") {
+    throw new TypeError("oneOf takes a string argument.");
   }
   return function(str, endPrev = initPos) {
     return alphabet.includes(str[0])
       ? succeed({
-          parser: 'oneOf',
+          parser: "oneOf",
           value: str[0],
           rest: str.slice(1),
           endPrev: endPrev,
           end: doIncr(str[0], endPrev)
         })
       : fail({
-          parser: 'oneOf',
+          parser: "oneOf",
           expected: `a character of '${alphabet}'`,
           found: `${str[0]}`,
           endPrev
@@ -64,13 +64,13 @@ function noneOf(alphabet) {
     let reply = oneOf(alphabet)(str, endPrev);
     return isSuccess(reply)
       ? fail({
-          parser: 'noneOf',
+          parser: "noneOf",
           expected: `a character not in '${alphabet}'`,
           found: `${reply.value[0]}`,
           endPrev
         })
       : success({
-          parser: 'noneOf',
+          parser: "noneOf",
           value: str[0],
           rest: str.slice(1),
           endPrev: endPrev,
@@ -81,20 +81,20 @@ function noneOf(alphabet) {
 
 function regex(re) {
   return function(str, endPrev = initPos) {
-    let modifiedRE = new RegExp('^' + re.source, re.flags);
+    let modifiedRE = new RegExp("^" + re.source, re.flags);
     let match = modifiedRE.exec(str);
     return match !== null
       ? succeed({
-          parser: 'regex',
+          parser: "regex",
           value: match,
           rest: str.slice(match[0].length),
           endPrev: endPrev,
           end: doIncr(match[0], endPrev)
         })
       : fail({
-          parser: 'regex',
+          parser: "regex",
           expected: `/${modifiedRE.source}/${modifiedRE.flags}`,
-          found: `${str.slice(0, 10)}${str.length <= 10 ? '' : '...'}`,
+          found: `${str.slice(0, 10)}${str.length <= 10 ? "" : "..."}`,
           endPrev
         });
   };
@@ -116,9 +116,9 @@ function mappedRegex(
 
 let letter = mappedRegex(
   /[a-zA-Z]/,
-  ({ value }) => ({ parser: 'letter', value: value[0] }),
+  ({ value }) => ({ parser: "letter", value: value[0] }),
   ({ endPrev }) => ({
-    parser: 'letter',
+    parser: "letter",
     expected: `a letter`,
     endPrev
   })
@@ -126,9 +126,9 @@ let letter = mappedRegex(
 
 let letters = mappedRegex(
   /[a-zA-Z]+/,
-  ({ value }) => ({ parser: 'letters', value: value[0] }),
+  ({ value }) => ({ parser: "letters", value: value[0] }),
   ({ endPrev }) => ({
-    parser: 'letters',
+    parser: "letters",
     expected: `a string of letters`,
     endPrev
   })
@@ -136,9 +136,9 @@ let letters = mappedRegex(
 
 let digit = mappedRegex(
   /[0-9]/,
-  ({ value }) => ({ parser: 'digit', value: value[0] }),
+  ({ value }) => ({ parser: "digit", value: value[0] }),
   ({ endPrev }) => ({
-    parser: 'letters',
+    parser: "letters",
     expected: `a digit`,
     endPrev
   })
@@ -146,9 +146,9 @@ let digit = mappedRegex(
 
 let digits = mappedRegex(
   /[0-9]+/,
-  ({ value }) => ({ parser: 'digits', value: value[0] }),
+  ({ value }) => ({ parser: "digits", value: value[0] }),
   ({ endPrev }) => ({
-    parser: 'letters',
+    parser: "letters",
     expected: `a string of digits (length > 0)`,
     endPrev
   })
@@ -156,9 +156,9 @@ let digits = mappedRegex(
 
 let spaces = mappedRegex(
   /[ ]+/,
-  ({ value }) => ({ parser: 'spaces', value: value[0] }),
+  ({ value }) => ({ parser: "spaces", value: value[0] }),
   ({ endPrev }) => ({
-    parser: 'spaces',
+    parser: "spaces",
     expected: `a string of spaces (length > 0)`,
     endPrev
   })
@@ -166,17 +166,17 @@ let spaces = mappedRegex(
 
 let maybeSpaces = mappedRegex(
   /[ ]*/,
-  ({ value }) => ({ parser: 'maybeSpaces', value: value[0] }),
+  ({ value }) => ({ parser: "maybeSpaces", value: value[0] }),
   () => {
-    throw new Error('maybeSpaces should never fail!');
+    throw new Error("maybeSpaces should never fail!");
   }
 );
 
 let whitespace = mappedRegex(
   /\s+/,
-  ({ value }) => ({ parser: 'whitespace', value: value[0] }),
+  ({ value }) => ({ parser: "whitespace", value: value[0] }),
   ({ endPrev }) => ({
-    parser: 'spaces',
+    parser: "spaces",
     expected: `whitespace (length > 0)`,
     endPrev
   })
@@ -184,9 +184,9 @@ let whitespace = mappedRegex(
 
 let maybeWhitespace = mappedRegex(
   /\s*/,
-  ({ value }) => ({ parser: 'maybeWhitespace', value: value[0] }),
+  ({ value }) => ({ parser: "maybeWhitespace", value: value[0] }),
   () => {
-    throw new Error('maybeWhitepace should never fail!');
+    throw new Error("maybeWhitepace should never fail!");
   }
 );
 
