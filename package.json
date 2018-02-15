@@ -11,6 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "jest": "^22.2.2",
+    "json-stringify-pretty-compact": "^1.1.0",
     "lodash": "^4.17.5"
   }
 }

@@ -1,3 +1,5 @@
+let { isSuccess, succeed, fail } = require('./parsers.js');
+
 function __seq(parsers) {
   if (!Array.isArray(parsers)) {
     throw new TypeError('You must pass an array to seq.');
